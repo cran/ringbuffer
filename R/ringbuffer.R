@@ -1,108 +1,69 @@
-ringbuffer <-
-function(size=10,warn=FALSE) {
+ringbuffer = function(size=100, warn=FALSE) {
   buf = new.env()
-  buf$buf = rep(NA,size)
-  buf$size = size
-  buf$wh = 1
-  buf$rh = 1
   buf$warn = warn
+  buf$max.size = size
+  buf$buffer = c()
+  buf$rh = 0
+  buf$wh = 0
   
-  buf$write = function(input) {
-    wh = buf$wh %% buf$size
-        
-    in.size = length(input)
-    if (in.size > buf$size) { #truncate to fit in buffer, if necessary
-      if (buf$warn) {
-        warning("buffer overflow (1)") 
-        warning(in.size, buf$size)
-      }
-      input = input[(in.size-buf$size+1):in.size]
-      in.size = length(input)
-    } else if (buf$writable() < in.size) {
-      if (buf$warn) {
-        warning("buffer overflow (2)")
-      }
+  buf$read = function(n=1) {
+    aa = min(n,length(buf$buffer))
+    
+    if (aa <= 0 & buf$warn) {
+      warning("length of items to read must be greater than zero")
+    } else if (aa < n & buf$warn) {
+      warning("buffer underflow: attempt to read more than buffer holds")
     }
+    
+    bb = max(n,length(buf$buffer))
+    if (bb > length(buf$buffer)) {
+      bb = length(buf$buffer)
+    }
+    
+    result = buf$buffer[1:aa]
+    
+    if (aa == bb) {
+      buf$buffer = c()
+    } else {
+      buf$buffer = buf$buffer[max(1,aa+1):bb]      
+    }
+    
+    return(result)
+  }
 
-    tail.size = buf$size - wh + 1 #how much to be written to tail
-    head.size = wh - 1 #how much to be written to head
-
-    if (wh == 0) { #corner case
-      buf$buf[buf$size] = input[1]
-      if (in.size > 1) {
-        buf$buf[1:(in.size-1)] = input[2:in.size]
-      }
-    } else if (in.size <= tail.size) {
-      buf$buf[wh:(wh+in.size-1)] = input[1:in.size]      
-    } else {
-      buf$buf[wh:buf$size] = input[1:tail.size]
- 
-      remainder = in.size - tail.size
-      buf$buf[1:remainder] = input[(tail.size+1):in.size]
-    }
-    buf$wh = (buf$wh + in.size)
-  }
-  
-  buf$read = function(size=1) {
-    rh = buf$rh %% buf$size
-    wh = buf$wh %% buf$size
-    
-    if (size > buf$size) {
-      if (buf$warn) {
-        warning("buffer underflow: read more than buffer holds")
-      }
-    } else if (size > buf$wh - buf$rh) {
-      if (buf$warn) {
-        warning("buffer underflow: read past write head (1)")
-      }
-    } else if (buf$readable() < size) {
-      if (buf$warn) {
-        warning("buffer underflow: read past write head (2)")      
-      }
+  buf$write = function(items=c()) {
+    if (length(items) <= 0 * buf$warn) {
+      warning("length of list of items to write must be greater than zero")
     }
     
-    if (size <= buf$size - rh + 1) {
-      result = buf$buf[rh:(rh+size-1)]
-      #buf$buf[buf$rh:(buf$rh+size-1)] = NA
-      buf$rh = buf$rh + size
-      return(result)
-    } else {
-      result = c(buf$buf[rh:buf$size], buf$buf[1:(size - length(rh:buf$size))])
-      buf$rh = buf$rh + size
-      return(result)
-    }
-  }
-  
-  buf$peek = function() {
-    rh = buf$rh %% buf$size
-    wh = buf$wh %% buf$size
     
-    if (rh == 1 && buf$wh - 1 <= buf$size) {
-      return(buf$buf[1:(buf$wh-1)])
-    } else {
-      if ((buf$wh-1) %% buf$size == 0) {
-        return(buf$buf[wh:buf$size])
-      } else {
-        result = c(buf$buf[wh:buf$size], buf$buf[1:((buf$wh-1) %% buf$size)])
-        return(result[1:buf$size])
+    buf$buffer = c(buf$buffer, items)
+    if (length(buf$buffer) > buf$max.size) {
+      if (warn) {
+        warning("buffer overflow: attempt to write more than buffer holds")
       }
-    }
-  }
-  
-  buf$writable = function() {
-    if(buf$wh == buf$rh | (buf$wh > buf$rh & buf$wh - buf$rh < buf$size)) {
-      return(buf$size - (buf$wh - buf$rh))
-    } else {
-      return(0)
+      bb = length(buf$buffer)
+      aa = 1+(bb - buf$max.size)
+      buf$buffer = buf$buffer[aa:bb]
     }
   }
   
   buf$readable = function() {
-    if(buf$rh < buf$wh) {
-      return(buf$wh - buf$rh)
+    return(length(buf$buffer))
+  }
+  
+  buf$writable = function() {
+    aa = length(buf$buffer)
+    if (aa < buf$max.size) {
+      return(buf$max.size - aa)
     } else {
       return(0)
     }
   }
+  
+  buf$peek = function() {
+    return(buf$buffer)
+  }
+  
   return(buf)
 }

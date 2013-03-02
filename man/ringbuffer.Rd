@@ -14,11 +14,11 @@ See http://en.wikipedia.org/wiki/Ring_buffer for more information.
 This package implements a ring buffer as an R array.
 }
 \usage{
-ringbuffer(size = 10, warn = FALSE)
+ringbuffer(size = 100, warn = FALSE)
 }
 \arguments{
   \item{size}{
-     An integer.  Size of ring buffer.  Defaults to 10.
+     An integer.  Size of ring buffer.  Defaults to 100.
   }
   \item{warn}{
      A boolean.  FALSE by default.  If set to TRUE, enables overflow/underflow warnings.
